@@ -48,16 +48,7 @@ jobs:
       with:
         repository: raspberrypi/pico-sdk
         path: pico-sdk
-        submodules: false
-
-    # HACK: Update Tiny USB
-    - name: Update Tiny USB
-      shell: bash
-      run: |
-        cd $GITHUB_WORKSPACE/pico-sdk/
-        git submodule update --init
-        cd lib/tinyusb
-        git pull origin master
+        submodules: true
 
     # Linux deps
     - name: Install deps
