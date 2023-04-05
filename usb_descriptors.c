@@ -24,20 +24,34 @@
  */
 
 #include "tusb.h"
+#include "pico/unique_id.h"
 
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
- * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
+ * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause issues on (a Windows) PC.
  *
  * Auto ProductID layout's Bitmap:
  *   [MSB]         HID | MSC | CDC          [LSB]
  */
-#define _PID_MAP(itf, n)  ( (CFG_TUD_##itf) << (n) )
-#define USB_PID           (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
-                           _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4) )
+#define _PID_MAP(itf, n)   ( (CFG_TUD_##itf) << (n) )
+#ifndef USB_VID
+#define USB_VID            (0xCafe)
+#endif
+#ifndef USB_PID
+#define USB_PID            (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
+                            _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4) )
+#endif
+#ifndef USB_DEVICE_VERSION
+// 1.0, Format 0xXXYZ (YY = major, Y = minor, Z = sub)
+#define USB_DEVICE_VERSION (0x0100)
+#endif
 
 //--------------------------------------------------------------------+
 // Device Descriptors
 //--------------------------------------------------------------------+
+
+// Storage for 8-byte unique ID, needs 16 + 1 bytes for hex representation + '\0'.
+char usb_serial[PICO_UNIQUE_BOARD_ID_SIZE_BYTES * 2 + 1];
+
 tusb_desc_device_t const desc_device =
 {
     .bLength            = sizeof(tusb_desc_device_t),
@@ -48,9 +62,9 @@ tusb_desc_device_t const desc_device =
     .bDeviceProtocol    = 0x00,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
 
-    .idVendor           = 0xCafe,
+    .idVendor           = USB_VID,
     .idProduct          = USB_PID,
-    .bcdDevice          = 0x0100,
+    .bcdDevice          = USB_DEVICE_VERSION,
 
     .iManufacturer      = 0x01,
     .iProduct           = 0x02,
@@ -66,21 +80,25 @@ uint8_t const * tud_descriptor_device_cb(void)
   return (uint8_t const *) &desc_device;
 }
 
+void usb_serial_init(void) {
+  pico_get_unique_board_id_string(usb_serial, sizeof(usb_serial));
+}
+
 //--------------------------------------------------------------------+
 // HID Report Descriptor
 //--------------------------------------------------------------------+
 
-uint8_t const desc_hid_report1[] =
+uint8_t const desc_hid_report_gamepad1[] =
 {
   TUD_HID_REPORT_DESC_GAMEPAD()
 };
 
-uint8_t const desc_hid_report2[] =
+uint8_t const desc_hid_report_gamepad2[] =
 {
   TUD_HID_REPORT_DESC_GAMEPAD()
 };
 
-uint8_t const desc_hid_report3[] =
+uint8_t const desc_hid_report_keyboard[] =
 {
   TUD_HID_REPORT_DESC_KEYBOARD()
 };
@@ -92,15 +110,15 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf)
 {
   if (itf == 0)
   {
-    return desc_hid_report1;
+    return desc_hid_report_gamepad1;
   }
   else if (itf == 1)
   {
-    return desc_hid_report2;
+    return desc_hid_report_gamepad2;
   }
   else if (itf == 2)
   {
-    return desc_hid_report3;
+    return desc_hid_report_keyboard;
   }
 
   return NULL;
@@ -130,9 +148,9 @@ uint8_t const desc_configuration[] =
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
 
   // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID1, 4, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report1), EPNUM_HID1, CFG_TUD_HID_EP_BUFSIZE, 10),
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID2, 5, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report2), EPNUM_HID2, CFG_TUD_HID_EP_BUFSIZE, 10),
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID3, 5, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report3), EPNUM_HID3, CFG_TUD_HID_EP_BUFSIZE, 10)
+  TUD_HID_DESCRIPTOR(ITF_NUM_HID1, 4, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_gamepad1), EPNUM_HID1, CFG_TUD_HID_EP_BUFSIZE, 10),
+  TUD_HID_DESCRIPTOR(ITF_NUM_HID2, 5, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_gamepad2), EPNUM_HID2, CFG_TUD_HID_EP_BUFSIZE, 10),
+  TUD_HID_DESCRIPTOR(ITF_NUM_HID3, 5, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_keyboard), EPNUM_HID3, CFG_TUD_HID_EP_BUFSIZE, 10)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -154,9 +172,9 @@ char const* string_desc_arr [] =
   (const char[]) { 0x09, 0x04 },  // 0: is supported language is English (0x0409)
   "TinyUSB",                      // 1: Manufacturer
   "TinyUSB Device",               // 2: Product
-  "123456",                       // 3: Serials, should use chip ID
-  "GamePad 1",           // 4: Interface 1 String
-  "GamePad 2",              // 5: Interface 2 String
+  usb_serial,                     // 3: Serials, should use chip ID
+  "GamePad 1",                    // 4: Interface 1 String
+  "GamePad 2",                    // 5: Interface 2 String
   "Keyboard",
 };
 

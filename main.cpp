@@ -30,6 +30,10 @@
 #include "bsp/board.h"
 #include "tusb.h"
 
+extern "C" {
+void usb_serial_init(void);
+}
+
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
@@ -60,6 +64,8 @@ void hid_task(void);
 int main(void)
 {
   board_init();
+  // Fetch the Pico serial (actually the flash chip ID) into `usb_serial`
+  usb_serial_init();
 
   // init device stack on configured roothub port
   tud_init(BOARD_TUD_RHPORT);
