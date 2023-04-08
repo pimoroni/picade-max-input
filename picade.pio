@@ -1,0 +1,26 @@
+;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+
+.program picade_scan
+.side_set 5
+.wrap_target
+    ; Gamepad Input
+    nop           side 0b00001
+    in   pins  8  side 0b00001
+    nop           side 0b00010
+    in   pins  8  side 0b00010
+    nop           side 0b00100
+    in   pins  8  side 0b00100
+    nop           side 0b01000
+    in   pins  8  side 0b01000
+    nop           side 0b10000
+    in   pins  8  side 0b10000
+    ; Dummy bytes
+    nop           side 0b00000
+    in   pins  8  side 0b00000
+    in   pins  8  side 0b00000
+    in   pins  8  side 0b00000
+.wrap

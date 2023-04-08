@@ -30,6 +30,11 @@
 #include "bsp/board.h"
 #include "tusb.h"
 
+#include "picade.hpp"
+#include "rgbled.hpp"
+
+pimoroni::RGBLED led(17, 18, 19);
+
 extern "C" {
 void usb_serial_init(void);
 }
@@ -40,8 +45,9 @@ void usb_serial_init(void);
 
 // Interface index depends on the order in configuration descriptor
 enum {
-  ITF_KEYBOARD = 0,
-  ITF_MOUSE = 1
+  ITF_GAMEPAD_1 = 0,
+  ITF_GAMEPAD_2 = 1,
+  ITF_KEYBOARD = 2
 };
 
 /* Blink pattern
@@ -63,6 +69,7 @@ void hid_task(void);
 /*------------- MAIN -------------*/
 int main(void)
 {
+  led.set_rgb(255, 0, 0);
   board_init();
   // Fetch the Pico serial (actually the flash chip ID) into `usb_serial`
   usb_serial_init();
@@ -70,10 +77,16 @@ int main(void)
   // init device stack on configured roothub port
   tud_init(BOARD_TUD_RHPORT);
 
+  led.set_rgb(0, 0, 255);
+
+  picade_init();
+
+  led.set_rgb(0, 255, 0);
+
   while (1)
   {
     tud_task(); // tinyusb device task
-    led_blinking_task();
+    //led_blinking_task();
 
     hid_task();
   }
@@ -125,7 +138,16 @@ void hid_task(void)
   if ( board_millis() - start_ms < interval_ms) return; // not enough time
   start_ms += interval_ms;
 
-  uint32_t const btn = board_button_read();
+  input_t in = picade_get_input();
+
+  //uint32_t const btn = board_button_read();
+  uint32_t btn = in.p1;
+
+  if(btn) {
+    led.set_rgb(255, 0, 0);
+  } else {
+    led.set_rgb(0, 255, 0);
+  }
 
   // Remote wakeup
   if ( tud_suspended() && btn )
@@ -157,16 +179,14 @@ void hid_task(void)
     }
   }
 
-  /*------------- Mouse -------------*/
-  if ( tud_hid_n_ready(ITF_MOUSE) )
+  if ( tud_hid_n_ready(ITF_GAMEPAD_1) )
   {
-    if ( btn )
-    {
-      int8_t const delta = 5;
+    tud_hid_n_gamepad_report(ITF_GAMEPAD_1, 0, -127, 0, 0, 0, 0, 0, 0, btn);
+  }
 
-      // no button, right + down, no scroll pan
-      tud_hid_n_mouse_report(ITF_MOUSE, 0, 0x00, delta, delta, 0, 0);
-    }
+  if ( tud_hid_n_ready(ITF_GAMEPAD_2) )
+  {
+    tud_hid_n_gamepad_report(ITF_GAMEPAD_2, 0, 127, 0, 0, 0, 0, 0, 0, btn);
   }
 }
 

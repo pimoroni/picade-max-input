@@ -136,7 +136,7 @@ enum
   ITF_NUM_TOTAL
 };
 
-#define  CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_DESC_LEN)
+#define  CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_DESC_LEN)
 
 #define EPNUM_HID1   0x81
 #define EPNUM_HID2   0x82
@@ -150,7 +150,7 @@ uint8_t const desc_configuration[] =
   // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
   TUD_HID_DESCRIPTOR(ITF_NUM_HID1, 4, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_gamepad1), EPNUM_HID1, CFG_TUD_HID_EP_BUFSIZE, 10),
   TUD_HID_DESCRIPTOR(ITF_NUM_HID2, 5, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_gamepad2), EPNUM_HID2, CFG_TUD_HID_EP_BUFSIZE, 10),
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID3, 5, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_keyboard), EPNUM_HID3, CFG_TUD_HID_EP_BUFSIZE, 10)
+  TUD_HID_DESCRIPTOR(ITF_NUM_HID3, 6, HID_ITF_PROTOCOL_KEYBOARD, sizeof(desc_hid_report_keyboard), EPNUM_HID3, CFG_TUD_HID_EP_BUFSIZE, 10)
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -170,8 +170,8 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
 char const* string_desc_arr [] =
 {
   (const char[]) { 0x09, 0x04 },  // 0: is supported language is English (0x0409)
-  "TinyUSB",                      // 1: Manufacturer
-  "TinyUSB Device",               // 2: Product
+  "Pimoroni",                      // 1: Manufacturer
+  "Picade Max",                   // 2: Product
   usb_serial,                     // 3: Serials, should use chip ID
   "GamePad 1",                    // 4: Interface 1 String
   "GamePad 2",                    // 5: Interface 2 String
