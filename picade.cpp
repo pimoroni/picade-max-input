@@ -99,7 +99,7 @@ void picade_init() {
 }
 
 input_t picade_get_input() {
-    input_t in = {0, 0, 0};
+    input_t in = {0, 0, 0, 0, 0};
 
     // Player 1, 12 buttons, 4 directions
     in.p1 = (picade_input_data[0] & 0xf0) >> 4;    // 1, 2, 3, 4
@@ -114,6 +114,16 @@ input_t picade_get_input() {
     in.p2 |= (picade_input_data[4] & 0x0f) << 12;
 
     in.util = (picade_input_data[3] & 0x07) | ((picade_input_data[3] & 0x70) >> 1);
+
+    if(in.p1 & JOYSTICK_LEFT) {in.p1_x = -127;}
+    if(in.p1 & JOYSTICK_RIGHT){in.p1_x =  127;}
+    if(in.p1 & JOYSTICK_UP)   {in.p1_y = -127;}
+    if(in.p1 & JOYSTICK_DOWN) {in.p1_y =  127;}
+
+    if(in.p2 & JOYSTICK_LEFT) {in.p2_x = -127;}
+    if(in.p2 & JOYSTICK_RIGHT){in.p2_x =  127;}
+    if(in.p2 & JOYSTICK_UP)   {in.p2_y = -127;}
+    if(in.p2 & JOYSTICK_DOWN) {in.p2_y =  127;}
 
     return in;
 }
