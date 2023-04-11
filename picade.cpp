@@ -9,6 +9,18 @@
 uint8_t picade_input_data[8] __attribute__((aligned(8))) = {0};
 uint32_t transfer_count = 5 + 3;  // 5 bytes of input + 3 dummy bytes
 
+
+bool operator==(const input_t& lhs, const input_t& rhs)
+{
+    return lhs.p1 == rhs.p1
+        && lhs.p2 == rhs.p2
+        && lhs.util == rhs.util
+        && lhs.p1_x == rhs.p1_x
+        && lhs.p1_y == rhs.p1_y
+        && lhs.p2_x == rhs.p2_x
+        && lhs.p2_y == rhs.p2_y;
+}
+
 void gpio_setup_input(uint pin) {
     gpio_init(pin);
     gpio_set_function(pin, GPIO_FUNC_SIO);
@@ -99,7 +111,8 @@ void picade_init() {
 }
 
 input_t picade_get_input() {
-    input_t in = {0, 0, 0, 0, 0};
+    static input_t last_in = {0, 0, 0, 0, 0, 0, 0, false};
+    input_t in = {0, 0, 0, 0, 0, 0, 0, false};
 
     // Player 1, 12 buttons, 4 directions
     in.p1 = (picade_input_data[0] & 0xf0) >> 4;    // 1, 2, 3, 4
@@ -124,6 +137,9 @@ input_t picade_get_input() {
     if(in.p2 & JOYSTICK_RIGHT){in.p2_x =  127;}
     if(in.p2 & JOYSTICK_UP)   {in.p2_y = -127;}
     if(in.p2 & JOYSTICK_DOWN) {in.p2_y =  127;}
+
+    in.changed = !(in == last_in);
+    last_in = in;
 
     return in;
 }

@@ -26,33 +26,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>  // isupper / islower
 
 #include "bsp/board.h"
 #include "tusb.h"
+#include "custom_gamepad.h"
 
 #include "picade.hpp"
+#include "plasma.hpp"
 #include "rgbled.hpp"
+
+#include "hardware/clocks.h"
+#include "hardware/vreg.h"
 
 pimoroni::RGBLED led(17, 18, 19);
 
-typedef struct TU_ATTR_PACKED
-{
-  int8_t  x;         ///< Delta x  movement of left analog-stick
-  int8_t  y;         ///< Delta y  movement of left analog-stick
-  uint16_t buttons;  ///< Buttons mask for currently pressed buttons
-} picade_gamepad_report_t;
-
-bool picade_gamepad_report(uint8_t instance, int8_t x, int8_t y, uint16_t buttons)
-{
-  picade_gamepad_report_t report =
-  {
-    .x       = x,
-    .y       = y,
-    .buttons = buttons,
-  };
-
-  return tud_hid_n_report(instance, 0, &report, sizeof(report));
-}
 
 extern "C" {
 void usb_serial_init(void);
@@ -64,30 +52,25 @@ void usb_serial_init(void);
 
 // Interface index depends on the order in configuration descriptor
 enum {
-  ITF_GAMEPAD_1 = 0,
-  ITF_GAMEPAD_2 = 1,
-  ITF_KEYBOARD = 2
+  ITF_GAMEPAD_1,
+  ITF_GAMEPAD_2,
+  ITF_KEYBOARD,
+  ITF_SERIAL,
+  ITF_SERIAL_DATA,
 };
 
-/* Blink pattern
- * - 250 ms  : device not mounted
- * - 1000 ms : device mounted
- * - 2500 ms : device is suspended
- */
-enum  {
-  BLINK_NOT_MOUNTED = 250,
-  BLINK_MOUNTED = 1000,
-  BLINK_SUSPENDED = 2500,
-};
-
-static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
-
-void led_blinking_task(void);
 void hid_task(void);
+void cdc_task(void);
 
 /*------------- MAIN -------------*/
 int main(void)
 {
+  // Apply a modest overvolt, default is 1.10v.
+  // this is required for a stable 250MHz on some RP2040s
+  //vreg_set_voltage(VREG_VOLTAGE_1_20);
+  //sleep_ms(10);
+  //set_sys_clock_khz(250000, true);
+
   led.set_rgb(255, 0, 0);
   board_init();
   // Fetch the Pico serial (actually the flash chip ID) into `usb_serial`
@@ -99,15 +82,15 @@ int main(void)
   led.set_rgb(0, 0, 255);
 
   picade_init();
+  plasma_init();
 
   led.set_rgb(0, 255, 0);
 
   while (1)
   {
-    tud_task(); // tinyusb device task
-    //led_blinking_task();
-
+    tud_task();
     hid_task();
+    cdc_task();
   }
 
   return 0;
@@ -120,13 +103,11 @@ int main(void)
 // Invoked when device is mounted
 void tud_mount_cb(void)
 {
-  blink_interval_ms = BLINK_MOUNTED;
 }
 
 // Invoked when device is unmounted
 void tud_umount_cb(void)
 {
-  blink_interval_ms = BLINK_NOT_MOUNTED;
 }
 
 // Invoked when usb bus is suspended
@@ -135,13 +116,11 @@ void tud_umount_cb(void)
 void tud_suspend_cb(bool remote_wakeup_en)
 {
   (void) remote_wakeup_en;
-  blink_interval_ms = BLINK_SUSPENDED;
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void)
 {
-  blink_interval_ms = BLINK_MOUNTED;
 }
 
 //--------------------------------------------------------------------+
@@ -153,20 +132,20 @@ void hid_task(void)
   // Poll every 10ms
   const uint32_t interval_ms = 1;
   static uint32_t start_ms = 0;
+  static bool state = false;
 
   if ( board_millis() - start_ms < interval_ms) return; // not enough time
   start_ms += interval_ms;
 
   input_t in = picade_get_input();
 
-  if(in.p1) {
-    led.set_rgb(255, 0, 0);
-  } else {
-    led.set_rgb(0, 255, 0);
+  if(in.changed) {
+    state = !state;
+    led.set_rgb(255 * state, 0, 0);
   }
 
   // Remote wakeup
-  if ( tud_suspended() && (in.p1 || in.p2 || in.util) )
+  if ( tud_suspended() && (in.changed) )
   {
     // Wake up host if we are in suspend mode
     // and REMOTE_WAKEUP feature is enabled by host
@@ -177,17 +156,17 @@ void hid_task(void)
   if ( tud_hid_n_ready(ITF_KEYBOARD) )
   {
     // use to avoid send multiple consecutive zero report for keyboard
-    static bool last_util = 0;
+    static uint8_t last_util = 0;
 
-    if ( in.util != last_util )
+    if ( in.changed && in.util != last_util )
     {
       uint8_t keycode[6] = {
-        (in.util & UTIL_ENTER)  ? HID_KEY_ENTER     : 0u,
-        (in.util & UTIL_ESCAPE) ? HID_KEY_ESCAPE    : 0u,
-        (in.util & UTIL_HOTKEY) ? HID_KEY_CONTROL_LEFT : 0u,
-        (in.util & UTIL_A)      ? HID_KEY_A         : 0u,
-        (in.util & UTIL_B)      ? HID_KEY_B         : 0u,
-        (in.util & UTIL_C)      ? HID_KEY_C         : 0u
+        (uint8_t)((in.util & UTIL_ENTER)  ? HID_KEY_ENTER     : 0u),
+        (uint8_t)((in.util & UTIL_ESCAPE) ? HID_KEY_ESCAPE    : 0u),
+        (uint8_t)((in.util & UTIL_HOTKEY) ? HID_KEY_CONTROL_LEFT : 0u),
+        (uint8_t)((in.util & UTIL_A)      ? HID_KEY_A         : 0u),
+        (uint8_t)((in.util & UTIL_B)      ? HID_KEY_B         : 0u),
+        (uint8_t)((in.util & UTIL_C)      ? HID_KEY_C         : 0u)
       };
   
       tud_hid_n_keyboard_report(ITF_KEYBOARD, 0, 0, keycode);
@@ -238,17 +217,28 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
 }
 
 //--------------------------------------------------------------------+
-// BLINKING TASK
+// USB CDC
 //--------------------------------------------------------------------+
-void led_blinking_task(void)
+extern uint8_t led_buffer[32 * 4 * 4]; // Uh this is plasma's buffer
+
+void cdc_task(void)
 {
+  const uint32_t interval_ms = 500;
   static uint32_t start_ms = 0;
-  static bool led_state = false;
+  static uint32_t ptr = 0;
+  //uint8_t buf[64] = {0};
 
-  // Blink every interval ms
-  if ( board_millis() - start_ms < blink_interval_ms) return; // not enough time
-  start_ms += blink_interval_ms;
+  if( tud_cdc_available() ) {
+    ptr = tud_cdc_read(led_buffer + ptr, sizeof(led_buffer));
+    if(ptr >= sizeof(led_buffer)){
+      ptr = 0;
+    }
+  }
 
-  board_led_write(led_state);
-  led_state = 1 - led_state; // toggle
+  /*if(tud_cdc_connected()) {
+    if ( board_millis() - start_ms < interval_ms) return; // not enough time
+    start_ms += interval_ms;
+    tud_cdc_write_str("Hello World\r\n");
+    tud_cdc_write_flush();
+  }*/
 }

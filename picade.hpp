@@ -21,7 +21,10 @@ struct input_t {
     int8_t p1_y;
     int8_t p2_x;
     int8_t p2_y;
+    bool changed;
 };
+
+bool operator==(const input_t& lhs, const input_t& rhs);
 
 void picade_init();
 input_t picade_get_input();

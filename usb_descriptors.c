@@ -46,6 +46,24 @@
 #define USB_DEVICE_VERSION (0x0100)
 #endif
 
+enum
+{
+  ITF_GAMEPAD_1,
+  ITF_GAMEPAD_2,
+  ITF_KEYBOARD,
+  ITF_CDC_0,
+  ITF_CDC_0_DATA,
+  ITF_NUM_TOTAL
+};
+
+#define EPNUM_HID1   0x83
+#define EPNUM_HID2   0x84
+#define EPNUM_HID3   0x85
+
+#define EPNUM_CDC_0_NOTIF   0x81
+#define EPNUM_CDC_0_OUT     0x02
+#define EPNUM_CDC_0_IN      0x82
+
 //--------------------------------------------------------------------+
 // Device Descriptors
 //--------------------------------------------------------------------+
@@ -58,9 +76,9 @@ tusb_desc_device_t const desc_device =
     .bLength            = sizeof(tusb_desc_device_t),
     .bDescriptorType    = TUSB_DESC_DEVICE,
     .bcdUSB             = 0x0200,
-    .bDeviceClass       = 0x00,
-    .bDeviceSubClass    = 0x00,
-    .bDeviceProtocol    = 0x00,
+    .bDeviceClass       = TUSB_CLASS_CDC,
+    .bDeviceSubClass    = MISC_SUBCLASS_COMMON,
+    .bDeviceProtocol    = MISC_PROTOCOL_IAD,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
 
     .idVendor           = USB_VID,
@@ -109,15 +127,15 @@ uint8_t const desc_hid_report_keyboard[] =
 // Descriptor contents must exist long enough for transfer to complete
 uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf)
 {
-  if (itf == 0)
+  if (itf == ITF_GAMEPAD_1)
   {
     return desc_hid_report_gamepad1;
   }
-  else if (itf == 1)
+  else if (itf == ITF_GAMEPAD_2)
   {
     return desc_hid_report_gamepad2;
   }
-  else if (itf == 2)
+  else if (itf == ITF_KEYBOARD)
   {
     return desc_hid_report_keyboard;
   }
@@ -129,19 +147,7 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf)
 // Configuration Descriptor
 //--------------------------------------------------------------------+
 
-enum
-{
-  ITF_NUM_HID1,
-  ITF_NUM_HID2,
-  ITF_NUM_HID3,
-  ITF_NUM_TOTAL
-};
-
-#define  CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_DESC_LEN)
-
-#define EPNUM_HID1   0x81
-#define EPNUM_HID2   0x82
-#define EPNUM_HID3   0x83
+#define  CONFIG_TOTAL_LEN  (TUD_CONFIG_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_DESC_LEN + TUD_HID_DESC_LEN + TUD_CDC_DESC_LEN)
 
 uint8_t const desc_configuration[] =
 {
@@ -149,9 +155,10 @@ uint8_t const desc_configuration[] =
   TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
 
   // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID1, 4, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_gamepad1), EPNUM_HID1, CFG_TUD_HID_EP_BUFSIZE, 1),
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID2, 5, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report_gamepad2), EPNUM_HID2, CFG_TUD_HID_EP_BUFSIZE, 1),
-  TUD_HID_DESCRIPTOR(ITF_NUM_HID3, 6, HID_ITF_PROTOCOL_KEYBOARD, sizeof(desc_hid_report_keyboard), EPNUM_HID3, CFG_TUD_HID_EP_BUFSIZE, 1)
+  TUD_HID_DESCRIPTOR(ITF_GAMEPAD_1, 4, HID_ITF_PROTOCOL_NONE,     sizeof(desc_hid_report_gamepad1), EPNUM_HID1, CFG_TUD_HID_EP_BUFSIZE, 1),
+  TUD_HID_DESCRIPTOR(ITF_GAMEPAD_2, 5, HID_ITF_PROTOCOL_NONE,     sizeof(desc_hid_report_gamepad2), EPNUM_HID2, CFG_TUD_HID_EP_BUFSIZE, 1),
+  TUD_HID_DESCRIPTOR(ITF_KEYBOARD,  6, HID_ITF_PROTOCOL_KEYBOARD, sizeof(desc_hid_report_keyboard), EPNUM_HID3, CFG_TUD_HID_EP_BUFSIZE, 1),
+  TUD_CDC_DESCRIPTOR(ITF_CDC_0,     7, EPNUM_CDC_0_NOTIF, 8, EPNUM_CDC_0_OUT, EPNUM_CDC_0_IN, 64),
 };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -171,12 +178,13 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index)
 char const* string_desc_arr [] =
 {
   (const char[]) { 0x09, 0x04 },  // 0: is supported language is English (0x0409)
-  "Pimoroni",                      // 1: Manufacturer
+  "Pimoroni",                     // 1: Manufacturer
   "Picade Max",                   // 2: Product
   usb_serial,                     // 3: Serials, should use chip ID
-  "GamePad 1",                    // 4: Interface 1 String
-  "GamePad 2",                    // 5: Interface 2 String
+  "GamePad 1",
+  "GamePad 2",
   "Keyboard",
+  "Plasma",
 };
 
 static uint16_t _desc_str[32];

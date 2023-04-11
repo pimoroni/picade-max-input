@@ -24,6 +24,7 @@ add_executable(${NAME})
 target_sources(${NAME} PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/main.cpp
     ${CMAKE_CURRENT_LIST_DIR}/picade.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/plasma.cpp
     ${CMAKE_CURRENT_LIST_DIR}/usb_descriptors.c
 )
 
@@ -32,7 +33,7 @@ target_include_directories(${NAME} PUBLIC
 )
 
 target_link_libraries(${NAME} PUBLIC
-    pico_stdlib hardware_pio hardware_dma pico_unique_id rgbled tinyusb_device tinyusb_board
+    pico_stdlib hardware_pio hardware_dma hardware_spi pico_unique_id rgbled tinyusb_device tinyusb_board
 )
 
 pico_generate_pio_header(${NAME} ${CMAKE_CURRENT_LIST_DIR}/picade.pio)

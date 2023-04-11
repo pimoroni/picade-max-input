@@ -19,7 +19,7 @@ jobs:
           - os: ubuntu-20.04
             name: Linux
             cache-key: linux
-            cmake-args: '-DPIMORONI_PICO_PATH=$GITHUB_WORKSPACE/pimoroni-pico -DPICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/install'
+            cmake-args: '-DPIMORONI_PICO_PATH=$GITHUB_WORKSPACE/pimoroni-pico -DPICO_SDK_PATH=$GITHUB_WORKSPACE/pico-sdk'
             apt-packages: clang-tidy gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
 
     runs-on: ${{matrix.os}}
@@ -27,7 +27,7 @@ jobs:
     env:
       PICO_SDK_PATH: $GITHUB_WORKSPACE/pico-sdk
       PIMORONI_PICO_LIBS: $GITHUB_WORKSPACE/pimoroni-pico
-      RELEASE_FILE: ${{github.event.repository.name}}-${{github.event.release.tag_name}}
+      RELEASE_FILE: ${{github.event.repository.name}}-${{github.event.release.tag_name || github.sha}}
 
     steps:
     - name: Checkout Code
@@ -62,13 +62,27 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{runner.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE/project -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCPACK_PACKAGE_FILE_NAME=${{env.RELEASE_FILE}} ${{matrix.cmake-args}}
+      run: cmake $GITHUB_WORKSPACE/project -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCPACK_PACKAGE_FILE_NAME=${{env.RELEASE_FILE}} -DCMAKE_INSTALL_PREFIX=`pwd`/install ${{matrix.cmake-args}}
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
       shell: bash
       run: |
         cmake --build . --config $BUILD_TYPE -j 2
+
+    - name: Prepare Artifact
+      if: github.event_name != 'release'
+      working-directory: ${{runner.workspace}}/build
+      shell: bash
+      run: |
+        cmake --build . --config $BUILD_TYPE --target install -j 2
+
+    - name: Upload Artifact
+      if: github.event_name != 'release'
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{env.RELEASE_FILE}}
+        path: ${{runner.workspace}}/build/install
 
     - name: Build Release Packages
       if: github.event_name == 'release'

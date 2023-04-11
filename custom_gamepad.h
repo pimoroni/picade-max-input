@@ -1,3 +1,5 @@
+#pragma once
+
 #define PICADE_HID_GAMEPAD(...) \
   HID_USAGE_PAGE ( HID_USAGE_PAGE_DESKTOP     )                 ,\
   HID_USAGE      ( HID_USAGE_DESKTOP_GAMEPAD  )                 ,\
@@ -28,3 +30,21 @@
     HID_INPUT        ( HID_CONSTANT                           )  ,\
   HID_COLLECTION_END \
 
+typedef struct TU_ATTR_PACKED
+{
+  int8_t  x;         ///< Delta x  movement of left analog-stick
+  int8_t  y;         ///< Delta y  movement of left analog-stick
+  uint16_t buttons;  ///< Buttons mask for currently pressed buttons
+} picade_gamepad_report_t;
+
+bool picade_gamepad_report(uint8_t instance, int8_t x, int8_t y, uint16_t buttons)
+{
+  picade_gamepad_report_t report =
+  {
+    .x       = x,
+    .y       = y,
+    .buttons = buttons,
+  };
+
+  return tud_hid_n_report(instance, 0, &report, sizeof(report));
+}
