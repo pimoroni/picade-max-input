@@ -9,7 +9,6 @@
 uint8_t picade_input_data[8] __attribute__((aligned(8))) = {0};
 uint32_t transfer_count = 5 + 3;  // 5 bytes of input + 3 dummy bytes
 
-
 bool operator==(const input_t& lhs, const input_t& rhs)
 {
     return lhs.p1 == rhs.p1
@@ -110,23 +109,46 @@ void picade_init() {
     pio_sm_set_enabled(pio, sm, true);
 }
 
+// This serves to debounce the falling edge of buttons,
+// particarly the joystick which can show contact bounce within the first 2ms
+// A rising edge is always reported instantly, meaning latency is never affected by debounce
+// however this short rolloff means- if you were some kind of superhuman or hooked your Picade to a signal generator-
+// it cannot report button transitions faster than roughly debounce_depth milliseconds.
+const uint debounce_depth = 3;  // How many reports- ostensibly milliseconds- before a low button should be reported as low
+uint64_t debounce_fifo[debounce_depth][8] = {0};
+uint debounce_fifo_idx = 0;
+
 input_t picade_get_input() {
     static input_t last_in = {0, 0, 0, 0, 0, 0, 0, false};
     input_t in = {0, 0, 0, 0, 0, 0, 0, false};
 
+    for(auto i = 0u; i < 8; i++) {
+        debounce_fifo[debounce_fifo_idx][i] = picade_input_data[i];
+    }
+    debounce_fifo_idx++;
+    debounce_fifo_idx %= debounce_depth;
+
+    uint8_t input_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    for(auto i = 0u; i < debounce_depth; i++) {
+        for(auto j = 0u; j < 8; j++) {
+            input_data[j] |= debounce_fifo[i][j];
+        }
+    }
+
     // Player 1, 12 buttons, 4 directions
-    in.p1 = (picade_input_data[0] & 0xf0) >> 4;    // 1, 2, 3, 4
-    in.p1 |= (picade_input_data[1] & 0xf0);        // 5, 6, 7, 8
-    in.p1 |= (picade_input_data[2] & 0xf0) << 4;   // 9, 10
-    in.p1 |= (picade_input_data[4] & 0xf0) << 8;   // joy
+    in.p1 = (input_data[0] & 0xf0) >> 4;    // 1, 2, 3, 4
+    in.p1 |= (input_data[1] & 0xf0);        // 5, 6, 7, 8
+    in.p1 |= (input_data[2] & 0xf0) << 4;   // 9, 10
+    in.p1 |= (input_data[4] & 0xf0) << 8;   // joy
 
     // Player 2, 12 buttons, 4 directions
-    in.p2 = (picade_input_data[0] & 0x0f);
-    in.p2 |= (picade_input_data[1] & 0x0f) << 4;
-    in.p2 |= (picade_input_data[2] & 0x0f) << 8;
-    in.p2 |= (picade_input_data[4] & 0x0f) << 12;
+    in.p2 = (input_data[0] & 0x0f);
+    in.p2 |= (input_data[1] & 0x0f) << 4;
+    in.p2 |= (input_data[2] & 0x0f) << 8;
+    in.p2 |= (input_data[4] & 0x0f) << 12;
 
-    in.util = (picade_input_data[3] & 0x07) | ((picade_input_data[3] & 0x70) >> 1);
+    in.util = (input_data[3] & 0x07) | ((input_data[3] & 0x70) >> 1);
 
     if(in.p1 & JOYSTICK_LEFT) {in.p1_x = -127;}
     if(in.p1 & JOYSTICK_RIGHT){in.p1_x =  127;}

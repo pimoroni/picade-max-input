@@ -163,7 +163,7 @@ void hid_task(void)
       uint8_t keycode[6] = {
         (uint8_t)((in.util & UTIL_ENTER)  ? HID_KEY_ENTER     : 0u),
         (uint8_t)((in.util & UTIL_ESCAPE) ? HID_KEY_ESCAPE    : 0u),
-        (uint8_t)((in.util & UTIL_HOTKEY) ? HID_KEY_CONTROL_LEFT : 0u),
+        //(uint8_t)((in.util & UTIL_HOTKEY) ? HID_KEY_CONTROL_LEFT : 0u),
         (uint8_t)((in.util & UTIL_A)      ? HID_KEY_A         : 0u),
         (uint8_t)((in.util & UTIL_B)      ? HID_KEY_B         : 0u),
         (uint8_t)((in.util & UTIL_C)      ? HID_KEY_C         : 0u)
@@ -178,7 +178,8 @@ void hid_task(void)
   if ( tud_hid_n_ready(ITF_GAMEPAD_1) )
   {
     //tud_hid_n_gamepad_report(ITF_GAMEPAD_1, 0, in.p1_x, in.p1_y, 0, 0, 0, 0, 0, in.p1 & BUTTON_MASK);
-    picade_gamepad_report(ITF_GAMEPAD_1, in.p1_x, in.p1_y, in.p1 & BUTTON_MASK);
+    uint16_t hotkey = in.util & UTIL_HOTKEY ? (1 << 12) : 0;
+    picade_gamepad_report(ITF_GAMEPAD_1, in.p1_x, in.p1_y, (in.p1 & BUTTON_MASK) | hotkey);
   }
 
   if ( tud_hid_n_ready(ITF_GAMEPAD_2) )
