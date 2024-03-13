@@ -20,6 +20,11 @@ bool operator==(const input_t& lhs, const input_t& rhs)
         && lhs.p2_y == rhs.p2_y;
 }
 
+bool operator!=(const input_t& lhs, const input_t& rhs)
+{
+    return !(lhs == rhs);
+}
+
 void gpio_setup_input(uint pin) {
     gpio_init(pin);
     gpio_set_function(pin, GPIO_FUNC_SIO);
@@ -118,9 +123,19 @@ const uint debounce_depth = 3;  // How many reports- ostensibly milliseconds- be
 uint64_t debounce_fifo[debounce_depth][8] = {0};
 uint debounce_fifo_idx = 0;
 
+uint8_t input_debug[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+static inline uint16_t map_button(uint8_t *input, uint8_t index, uint8_t byte, uint8_t bit) {
+    // Index is the bit index of the button in the 16-bit button map
+    uint16_t button = (input[byte] >> bit) & 0b1;
+    button <<= index;
+    return button;
+}
+
 input_t picade_get_input() {
     static input_t last_in = {0, 0, 0, 0, 0, 0, 0, false};
     input_t in = {0, 0, 0, 0, 0, 0, 0, false};
+    uint8_t input_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     for(auto i = 0u; i < 8; i++) {
         debounce_fifo[debounce_fifo_idx][i] = picade_input_data[i];
@@ -128,8 +143,15 @@ input_t picade_get_input() {
     debounce_fifo_idx++;
     debounce_fifo_idx %= debounce_depth;
 
-    uint8_t input_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    for(auto i = 0u; i < 8; i++) {
+        input_debug[i] = picade_input_data[i];
+    }
 
+    // By merging the input data with the previous FIFO entries
+    // a button will have to read low for the entire FIFO depth
+    // before it is *reported* low.
+    // This means that rise time - button press - is *instant*
+    // and fall time - button release - is debounced.
     for(auto i = 0u; i < debounce_depth; i++) {
         for(auto j = 0u; j < 8; j++) {
             input_data[j] |= debounce_fifo[i][j];
@@ -137,18 +159,42 @@ input_t picade_get_input() {
     }
 
     // Player 1, 12 buttons, 4 directions
-    in.p1 = (input_data[0] & 0xf0) >> 4;    // 1, 2, 3, 4
-    in.p1 |= (input_data[1] & 0xf0);        // 5, 6, 7, 8
-    in.p1 |= (input_data[2] & 0xf0) << 4;   // 9, 10
-    in.p1 |= (input_data[4] & 0xf0) << 8;   // joy
+    in.p1 |= (input_data[4] & 0x0f) << 12;     // joystick
+    in.p1 |= map_button(input_data, 0,  0, 1); // A
+    in.p1 |= map_button(input_data, 1,  0, 2); // B
+    in.p1 |= map_button(input_data, 2,  0, 3); // X
+    in.p1 |= map_button(input_data, 3,  1, 0); // Y
+    in.p1 |= map_button(input_data, 4,  0, 0); // Start
+    in.p1 |= map_button(input_data, 5,  2, 1); // Select
+    in.p1 |= map_button(input_data, 6,  1, 1); // L1
+    in.p1 |= map_button(input_data, 7,  1, 3); // R1
+    in.p1 |= map_button(input_data, 8,  1, 2); // L2
+    in.p1 |= map_button(input_data, 9,  2, 0); // R2
+    in.p1 |= map_button(input_data, 10, 2, 2); // L3
+    in.p1 |= map_button(input_data, 11, 2, 3); // R3
 
     // Player 2, 12 buttons, 4 directions
-    in.p2 = (input_data[0] & 0x0f);
-    in.p2 |= (input_data[1] & 0x0f) << 4;
-    in.p2 |= (input_data[2] & 0x0f) << 8;
-    in.p2 |= (input_data[4] & 0x0f) << 12;
+    in.p2 |= (input_data[4] & 0xf0) << 8;      // joystick
+    in.p2 |= map_button(input_data, 0,  2, 7); // A
+    in.p2 |= map_button(input_data, 1,  3, 4); // B
+    in.p2 |= map_button(input_data, 2,  3, 5); // X
+    in.p2 |= map_button(input_data, 3,  3, 6); // Y
+    in.p2 |= map_button(input_data, 4,  2, 6); // Start
+    in.p2 |= map_button(input_data, 5,  1, 4); // Select
+    in.p2 |= map_button(input_data, 6,  0, 4); // L1
+    in.p2 |= map_button(input_data, 7,  0, 6); // R1
+    in.p2 |= map_button(input_data, 8,  0, 5); // L2
+    in.p2 |= map_button(input_data, 9,  0, 7); // R2
+    in.p2 |= map_button(input_data, 10, 1, 5); // L3
+    in.p2 |= map_button(input_data, 11, 1, 6); // R3
 
-    in.util = (input_data[3] & 0x07) | ((input_data[3] & 0x70) >> 1);
+    // Six util buttons
+    in.util |= map_button(input_data, 0, 3, 0); // P1 Hotkey
+    in.util |= map_button(input_data, 1, 1, 7); // P2 Hotkey
+    in.util |= map_button(input_data, 2, 3, 1); // P1 X1
+    in.util |= map_button(input_data, 3, 3, 2); // P1 X2
+    in.util |= map_button(input_data, 4, 2, 4); // P2 X1
+    in.util |= map_button(input_data, 5, 2, 5); // P2 X2
 
     if(in.p1 & JOYSTICK_LEFT) {in.p1_x = -127;}
     if(in.p1 & JOYSTICK_RIGHT){in.p1_x =  127;}
@@ -160,7 +206,7 @@ input_t picade_get_input() {
     if(in.p2 & JOYSTICK_UP)   {in.p2_y = -127;}
     if(in.p2 & JOYSTICK_DOWN) {in.p2_y =  127;}
 
-    in.changed = !(in == last_in);
+    in.changed = in != last_in;
     last_in = in;
 
     return in;

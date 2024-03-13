@@ -155,37 +155,35 @@ void hid_task(void)
   /*------------- Keyboard -------------*/
   if ( tud_hid_n_ready(ITF_KEYBOARD) )
   {
+    /*
     // use to avoid send multiple consecutive zero report for keyboard
     static uint8_t last_util = 0;
 
     if ( in.changed && in.util != last_util )
     {
       uint8_t keycode[6] = {
-        (uint8_t)((in.util & UTIL_ENTER)  ? HID_KEY_ENTER     : 0u),
-        (uint8_t)((in.util & UTIL_ESCAPE) ? HID_KEY_ESCAPE    : 0u),
-        //(uint8_t)((in.util & UTIL_HOTKEY) ? HID_KEY_CONTROL_LEFT : 0u),
-        (uint8_t)((in.util & UTIL_A)      ? HID_KEY_A         : 0u),
-        (uint8_t)((in.util & UTIL_B)      ? HID_KEY_B         : 0u),
-        (uint8_t)((in.util & UTIL_C)      ? HID_KEY_C         : 0u)
+        (uint8_t)((in.util & (UTIL_P1_HOTKEY | UTIL_P2_HOTKEY)) ? HID_KEY_ESCAPE : 0u),
       };
   
       tud_hid_n_keyboard_report(ITF_KEYBOARD, 0, 0, keycode);
 
       last_util = in.util;
     }
+    */
   }
 
   if ( tud_hid_n_ready(ITF_GAMEPAD_1) )
   {
     //tud_hid_n_gamepad_report(ITF_GAMEPAD_1, 0, in.p1_x, in.p1_y, 0, 0, 0, 0, 0, in.p1 & BUTTON_MASK);
-    uint16_t hotkey = in.util & UTIL_HOTKEY ? (1 << 12) : 0;
+    uint16_t hotkey = (in.util & UTIL_P1_HOTKEY) ? (1 << 12) : 0;
     picade_gamepad_report(ITF_GAMEPAD_1, in.p1_x, in.p1_y, (in.p1 & BUTTON_MASK) | hotkey);
   }
 
   if ( tud_hid_n_ready(ITF_GAMEPAD_2) )
   {
     //tud_hid_n_gamepad_report(ITF_GAMEPAD_2, 0, in.p2_x, in.p2_y, 0, 0, 0, 0, 0, in.p2 & BUTTON_MASK);
-    picade_gamepad_report(ITF_GAMEPAD_2, in.p2_x, in.p2_y, in.p2 & BUTTON_MASK);
+    uint16_t hotkey = (in.util & UTIL_P2_HOTKEY) ? (1 << 12) : 0;
+    picade_gamepad_report(ITF_GAMEPAD_2, in.p2_x, in.p2_y, (in.p2 & BUTTON_MASK) | hotkey);
   }
 }
 
@@ -236,10 +234,24 @@ void cdc_task(void)
     }
   }
 
-  /*if(tud_cdc_connected()) {
+  if(tud_cdc_connected()) {
+#ifdef INPUT_DEBUG
     if ( board_millis() - start_ms < interval_ms) return; // not enough time
     start_ms += interval_ms;
-    tud_cdc_write_str("Hello World\r\n");
+    tud_cdc_write_str("input: ");
+    for (auto i = 0u; i < 8; i++) {
+      uint8_t in = input_debug[i];
+      for (auto j = 0u; j < 8; j++) {
+        if (in & (0b10000000 >>  j)) {
+          tud_cdc_write_str("1");
+        } else {
+          tud_cdc_write_str("0");
+        }
+      }
+      tud_cdc_write_str(" ");
+    }
+    tud_cdc_write_str("\r\n");
     tud_cdc_write_flush();
-  }*/
+#endif
+  }
 }

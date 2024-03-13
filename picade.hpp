@@ -6,6 +6,10 @@ const int16_t JOYSTICK_DOWN  = 0b0010000000000000;
 const int16_t JOYSTICK_UP    = 0b0001000000000000;
 const int16_t BUTTON_MASK    = 0b0000111111111111;
 
+const uint8_t UTIL_P1_HOTKEY = 0b000001;
+const uint8_t UTIL_P2_HOTKEY = 0b000010;
+
+// Deprecated
 const uint8_t UTIL_ENTER  = 0b000001;
 const uint8_t UTIL_ESCAPE = 0b000010;
 const uint8_t UTIL_HOTKEY = 0b000100;
@@ -25,6 +29,9 @@ struct input_t {
 };
 
 bool operator==(const input_t& lhs, const input_t& rhs);
+bool operator!=(const input_t& lhs, const input_t& rhs);
 
 void picade_init();
 input_t picade_get_input();
+
+extern uint8_t input_debug[8];
