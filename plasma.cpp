@@ -4,6 +4,7 @@
 
 // TODO I count 30 inputs on the board- 12 per player + 6 util so we're probably OK with 32 buttons * 4 LEDs * 4 bytes?
 uint8_t led_buffer[32 * 4 * 4] = {0};
+uint8_t led_front_buffer[32 * 4 * 4] = {0};
 
 // TODO these might need dialling in but seem okay on my 4x4 rig
 uint8_t apa102_sof[8] = {0x00};
@@ -48,6 +49,18 @@ void plasma_init() {
                           led_buffer,
                           sizeof(led_buffer),
                           true);
+}
+
+void plasma_flip() {
+    /*
+    Plasma is     SOF B G R
+    Multiverse is B G R _
+    */
+    for(auto x = 0u; x < sizeof(led_buffer); x += 4) {
+        led_buffer[x + 1] = led_front_buffer[x + 0];
+        led_buffer[x + 2] = led_front_buffer[x + 1];
+        led_buffer[x + 3] = led_front_buffer[x + 2];
+    }
 }
 
 void plasma_set_all(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {

@@ -25,7 +25,8 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <string>
+#include <string_view>
 #include <ctype.h>  // isupper / islower
 
 #include "bsp/board.h"
@@ -38,8 +39,18 @@
 
 #include "hardware/clocks.h"
 #include "hardware/vreg.h"
+#include "pico/bootrom.h"
+#include "hardware/structs/rosc.h"
+#include "hardware/watchdog.h"
+#include "pico/timeout_helper.h"
 
 pimoroni::RGBLED led(17, 18, 19);
+
+const size_t MAX_UART_PACKET = 64;
+
+const size_t COMMAND_LEN = 4;
+uint8_t command_buffer[COMMAND_LEN];
+std::string_view command((const char *)command_buffer, COMMAND_LEN);
 
 
 extern "C" {
@@ -60,7 +71,54 @@ enum {
 };
 
 void hid_task(void);
-void cdc_task(void);
+uint cdc_task(uint8_t *buf, size_t buf_len);
+
+uint cdc_task(uint8_t *buf, size_t buf_len) {
+
+    if (tud_cdc_connected()) {
+        if (tud_cdc_available()) {
+            return tud_cdc_read(buf, buf_len);
+        }
+    }
+
+    return 0;
+}
+
+bool cdc_wait_for(std::string_view data, uint timeout_ms=50) {
+    timeout_state ts;
+    absolute_time_t until = delayed_by_ms(get_absolute_time(), timeout_ms);
+    check_timeout_fn check_timeout = init_single_timeout_until(&ts, until);
+
+    for(auto expected_char : data) {
+        char got_char;
+        while(1){
+            tud_task();
+            if (cdc_task((uint8_t *)&got_char, 1) == 1) break;
+            if(check_timeout(&ts)) return false;
+        }
+        if (got_char != expected_char) return false;
+    }
+    return true;
+}
+
+size_t cdc_get_bytes(const uint8_t *buffer, const size_t len, const uint timeout_ms=1000) {
+    memset((void *)buffer, len, 0);
+
+    uint8_t *p = (uint8_t *)buffer;
+
+    timeout_state ts;
+    absolute_time_t until = delayed_by_ms(get_absolute_time(), timeout_ms);
+    check_timeout_fn check_timeout = init_single_timeout_until(&ts, until);
+
+    size_t bytes_remaining = len;
+    while (bytes_remaining && !check_timeout(&ts)) {
+        tud_task(); // tinyusb device task
+        size_t bytes_read = cdc_task(p, std::min(bytes_remaining, MAX_UART_PACKET));
+        bytes_remaining -= bytes_read;
+        p += bytes_read;
+    }
+    return len - bytes_remaining;
+}
 
 /*------------- MAIN -------------*/
 int main(void)
@@ -90,7 +148,43 @@ int main(void)
   {
     tud_task();
     hid_task();
-    cdc_task();
+    //cdc_task();
+
+    if (tud_cdc_connected()) {
+      if (tud_cdc_available()) {
+        if(!cdc_wait_for("multiverse:")) {
+            continue; // Couldn't get 16 bytes of command
+        }
+
+        if(cdc_get_bytes(command_buffer, COMMAND_LEN) != COMMAND_LEN) {
+            //display::info("cto");
+            continue;
+        }
+
+        if(command == "data") {
+            if (cdc_get_bytes(led_front_buffer, sizeof(led_front_buffer)) == sizeof(led_front_buffer)) {
+              plasma_flip();
+            }
+            continue;
+        }
+
+        if(command == "_rst") {
+            sleep_ms(500);
+            save_and_disable_interrupts();
+            rosc_hw->ctrl = ROSC_CTRL_ENABLE_VALUE_ENABLE << ROSC_CTRL_ENABLE_LSB;
+            watchdog_reboot(0, 0, 0);
+            continue;
+        }
+
+        if(command == "_usb") {
+            sleep_ms(500);
+            save_and_disable_interrupts();
+            rosc_hw->ctrl = ROSC_CTRL_ENABLE_VALUE_ENABLE << ROSC_CTRL_ENABLE_LSB;
+            reset_usb_boot(0, 0);
+            continue;
+        }
+      }
+    }
   }
 
   return 0;
@@ -218,8 +312,8 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
 //--------------------------------------------------------------------+
 // USB CDC
 //--------------------------------------------------------------------+
-extern uint8_t led_buffer[32 * 4 * 4]; // Uh this is plasma's buffer
 
+/*
 void cdc_task(void)
 {
   const uint32_t interval_ms = 500;
@@ -228,10 +322,10 @@ void cdc_task(void)
   //uint8_t buf[64] = {0};
 
   if( tud_cdc_available() ) {
-    ptr = tud_cdc_read(led_buffer + ptr, sizeof(led_buffer));
-    if(ptr >= sizeof(led_buffer)){
-      ptr = 0;
-    }
+    //ptr = tud_cdc_read(led_buffer + ptr, sizeof(led_buffer));
+    //if(ptr >= sizeof(led_buffer)){
+    //  ptr = 0;
+    //}
   }
 
   if(tud_cdc_connected()) {
@@ -255,3 +349,4 @@ void cdc_task(void)
 #endif
   }
 }
+*/
