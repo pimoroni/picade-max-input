@@ -269,15 +269,21 @@ void hid_task(void)
   if ( tud_hid_n_ready(ITF_GAMEPAD_1) )
   {
     //tud_hid_n_gamepad_report(ITF_GAMEPAD_1, 0, in.p1_x, in.p1_y, 0, 0, 0, 0, 0, in.p1 & BUTTON_MASK);
-    uint16_t hotkey = (in.util & UTIL_P1_HOTKEY) ? (1 << 12) : 0;
-    picade_gamepad_report(ITF_GAMEPAD_1, in.p1_x, in.p1_y, (in.p1 & BUTTON_MASK) | hotkey);
+    uint16_t extra = 0;
+    extra |= (in.util & UTIL_P1_HOTKEY) ? (1 << 12) : 0;
+    extra |= (in.util & UTIL_P1_X1) ? (1 << 13) : 0;
+    extra |= (in.util & UTIL_P1_X2) ? (1 << 14) : 0;
+    picade_gamepad_report(ITF_GAMEPAD_1, in.p1_x, in.p1_y, (in.p1 & BUTTON_MASK) | extra);
   }
 
   if ( tud_hid_n_ready(ITF_GAMEPAD_2) )
   {
     //tud_hid_n_gamepad_report(ITF_GAMEPAD_2, 0, in.p2_x, in.p2_y, 0, 0, 0, 0, 0, in.p2 & BUTTON_MASK);
-    uint16_t hotkey = (in.util & UTIL_P2_HOTKEY) ? (1 << 12) : 0;
-    picade_gamepad_report(ITF_GAMEPAD_2, in.p2_x, in.p2_y, (in.p2 & BUTTON_MASK) | hotkey);
+    uint16_t extra = 0;
+    extra |= (in.util & UTIL_P2_HOTKEY) ? (1 << 12) : 0;
+    extra |= (in.util & UTIL_P2_X1) ? (1 << 13) : 0;
+    extra |= (in.util & UTIL_P2_X2) ? (1 << 14) : 0;
+    picade_gamepad_report(ITF_GAMEPAD_2, in.p2_x, in.p2_y, (in.p2 & BUTTON_MASK) | extra);
   }
 }
 
