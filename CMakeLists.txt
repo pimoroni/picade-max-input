@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(NAME usb-gamepads)
+set(NAME picade-max-input)
 set(FAMILY rp2040)
 set(BOARD pico_sdk)
 
