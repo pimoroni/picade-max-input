@@ -29,7 +29,7 @@
 #include <string_view>
 #include <ctype.h>  // isupper / islower
 
-#include "bsp/board.h"
+#include "bsp/board_api.h"
 #include "tusb.h"
 #include "custom_gamepad.h"
 

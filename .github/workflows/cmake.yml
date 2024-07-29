@@ -50,6 +50,12 @@ jobs:
         path: pico-sdk
         submodules: true
 
+    - name: TESTING Mangle Pico SDK's TinyUSB submodule
+      run: |
+        cd pico-sdk/lib/tinyusb
+        git fetch origin master:master
+        git checkout master
+
     # Linux deps
     - name: Install deps
       if: runner.os == 'Linux'
