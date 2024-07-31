@@ -1,8 +1,9 @@
-import multiverse
 import glob
+import serial
 
-picades = glob.glob("/dev/serial/by-id/usb-Pimoroni_Picade_Max_*")
+picade = glob.glob("/dev/serial/by-id/usb-Pimoroni_Picade_Max_*")[0]
 
-d = multiverse.Display(picades[0], 32, 32, 0, 0)
-d.setup()
-d.bootloader()
+device = serial.Serial(picade)
+
+device.write(b"multiverse:_usb")
+
