@@ -119,7 +119,7 @@ void picade_init() {
 // A rising edge is always reported instantly, meaning latency is never affected by debounce
 // however this short rolloff means- if you were some kind of superhuman or hooked your Picade to a signal generator-
 // it cannot report button transitions faster than roughly debounce_depth milliseconds.
-const uint debounce_depth = 3;  // How many reports- ostensibly milliseconds- before a low button should be reported as low
+const uint debounce_depth = 5;  // How many reports- ostensibly milliseconds- before a low button should be reported as low
 uint64_t debounce_fifo[debounce_depth][8] = {0};
 uint debounce_fifo_idx = 0;
 
