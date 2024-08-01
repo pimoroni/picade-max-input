@@ -27,20 +27,6 @@
 #include "pico/unique_id.h"
 #include "custom_gamepad.h"
 
-/* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
- * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause issues on (a Windows) PC.
- *
- * Auto ProductID layout's Bitmap:
- *   [MSB]         HID | MSC | CDC          [LSB]
- */
-#define _PID_MAP(itf, n)   ( (CFG_TUD_##itf) << (n) )
-#ifndef USB_VID
-#define USB_VID            (0xCafe)
-#endif
-#ifndef USB_PID
-#define USB_PID            (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
-                            _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4) )
-#endif
 #ifndef USB_DEVICE_VERSION
 // 1.0, Format 0xXXYZ (YY = major, Y = minor, Z = sub)
 #define USB_DEVICE_VERSION (0x0100)
@@ -81,8 +67,8 @@ tusb_desc_device_t const desc_device =
     .bDeviceProtocol    = MISC_PROTOCOL_IAD,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
 
-    .idVendor           = USB_VID,
-    .idProduct          = USB_PID,
+    .idVendor           = 0x2e8a,
+    .idProduct          = 0x1098,
     .bcdDevice          = USB_DEVICE_VERSION,
 
     .iManufacturer      = 0x01,
