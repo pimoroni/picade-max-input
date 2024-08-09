@@ -28,7 +28,7 @@ https://github.com/pimoroni/picade-max-input/releases/
 
 If you want to double check, ssh to the picade and run
 
-mount
+```mount
 
 You're looking for an entry like this one - if you have a USB drive or other devices are in bootloader mode you might see more than one listed here.
 
