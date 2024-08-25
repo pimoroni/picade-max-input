@@ -8,14 +8,10 @@ const int16_t BUTTON_MASK    = 0b0000111111111111;
 
 const uint8_t UTIL_P1_HOTKEY = 0b000001;
 const uint8_t UTIL_P2_HOTKEY = 0b000010;
-
-// Deprecated
-const uint8_t UTIL_ENTER  = 0b000001;
-const uint8_t UTIL_ESCAPE = 0b000010;
-const uint8_t UTIL_HOTKEY = 0b000100;
-const uint8_t UTIL_A      = 0b001000;
-const uint8_t UTIL_B      = 0b010000;
-const uint8_t UTIL_C      = 0b100000;
+const uint8_t UTIL_P1_X1     = 0b000100;
+const uint8_t UTIL_P1_X2     = 0b001000;
+const uint8_t UTIL_P2_X1     = 0b010000;
+const uint8_t UTIL_P2_X2     = 0b100000;
 
 struct input_t {
     uint16_t p1;

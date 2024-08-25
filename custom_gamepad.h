@@ -15,17 +15,17 @@
     HID_REPORT_COUNT   ( 2                                      ) ,\
     HID_REPORT_SIZE    ( 8                                      ) ,\
     HID_INPUT          ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE ) ,\
-    /* 13 bit Button Map */ \
+    /* 15 bit Button Map */ \
     HID_USAGE_PAGE     ( HID_USAGE_PAGE_BUTTON                  ) ,\
     HID_USAGE_MIN      ( 1                                      ) ,\
-    HID_USAGE_MAX      ( 13                                     ) ,\
+    HID_USAGE_MAX      ( 15                                     ) ,\
     HID_LOGICAL_MIN    ( 0                                      ) ,\
     HID_LOGICAL_MAX    ( 1                                      ) ,\
-    HID_REPORT_COUNT   ( 13                                     ) ,\
+    HID_REPORT_COUNT   ( 15                                     ) ,\
     HID_REPORT_SIZE    ( 1                                      ) ,\
     HID_INPUT          ( HID_DATA | HID_VARIABLE | HID_ABSOLUTE ) ,\
-    /* 3 bit reserved */ \
-    HID_REPORT_COUNT ( 3                                      )  ,\
+    /* 1 bit reserved */ \
+    HID_REPORT_COUNT ( 1                                      )  ,\
     HID_REPORT_SIZE  ( 1                                      )  ,\
     HID_INPUT        ( HID_CONSTANT                           )  ,\
   HID_COLLECTION_END \
