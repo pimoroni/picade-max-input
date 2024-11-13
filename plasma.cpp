@@ -57,6 +57,7 @@ void plasma_flip() {
     Multiverse is B G R _
     */
     for(auto x = 0u; x < sizeof(led_buffer); x += 4) {
+        led_buffer[x + 0] = APA102_SOF | led_front_buffer[x + 3];
         led_buffer[x + 1] = led_front_buffer[x + 0];
         led_buffer[x + 2] = led_front_buffer[x + 1];
         led_buffer[x + 3] = led_front_buffer[x + 2];
